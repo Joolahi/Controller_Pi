@@ -8,9 +8,20 @@ button_alert = False
 
 app = Flask(__name__)
 
+GPIO.setwarnings(False)
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(LED_PIN, GPIO.OUT)
 GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+
+
+def handle_button_press(channel):
+    global button_alert
+    button_alert = True
+    print("Painiketta painettu!")
+
+GPIO.add_event_detect(
+    BUTTON_PIN, GPIO.FALLING, callback=handle_button_press, bouncetime=300
+)
 
 @app.route('/led', methods=['POST'])
 def control_led():
@@ -26,18 +37,19 @@ def control_led():
     else:
         return {"error": "Invalid state. Use 'on' or 'off'."}, 400
 
-@app.route('/button', methods=['GET'])
+
+@app.route("/button", methods=["GET"])
 def button_state():
     global button_alert
-    if GPIO.input(BUTTON_PIN) == GPIO.LOW:
-        button_alert = True
-    return {"alert" : button_alert}
+    return {"alert": button_alert}
 
-@app.route("/button/ack", methods=['POST'])
+
+@app.route("/button/ack", methods=["POST"])
 def button_ack():
     global button_alert
     button_alert = False
-    return  {"acknowledged": True}, 200
+    return {"acknowledged": True}, 200
+
 
 @app.route("/")
 def index():
@@ -64,26 +76,26 @@ def index():
                 });
             }
 
-               // Pollaa painiketilaa
-                setInterval(() => {
-                    fetch('/button')
-                        .then(r => r.json())
-                        .then(data => {
-                            const el = document.getElementById("buttonAlert");
-                            if (data.alert) {
-                                el.style.display = "inline-block";
-                            }
-                        });
-                }, 2000);
 
-                // Kuittaa painike
-                function acknowledge() {
-                    fetch('/button/ack', {
-                        method: 'POST'
-                    }).then(() => {
-                        document.getElementById("buttonAlert").style.display = "none";
+            window.onload = () => {
+                fetch('/button')
+                    .then(r => r.json())
+                    .then(data => {
+                        const el = document.getElementById("buttonAlert");
+                        if (data.alert) {
+                            el.style.display = "inline-block";
+                        }
                     });
-                }
+            };
+
+
+            function acknowledge() {
+                fetch('/button/ack', {
+                    method: 'POST'
+                }).then(() => {
+                    document.getElementById("buttonAlert").style.display = "none";
+                });
+            }
         </script>
     """
 
