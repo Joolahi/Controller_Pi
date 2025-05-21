@@ -4,6 +4,8 @@ import RPi.GPIO as GPIO
 
 LED_PIN = 17 # physical pin 11
 BUTTON_PIN = 27 # physical pin 13
+button_alert = False
+
 app = Flask(__name__)
 
 GPIO.setmode(GPIO.BCM)
@@ -24,11 +26,18 @@ def control_led():
     else:
         return {"error": "Invalid state. Use 'on' or 'off'."}, 400
 
-@app.route('/button', methods=['POST'])
+@app.route('/button', methods=['GET'])
 def button_state():
-    state = GPIO.input(BUTTON_PIN)
-    return {"pressed": state == GPIO.LOW}
+    global button_alert
+    if GPIO.input(BUTTON_PIN) == GPIO.LOW:
+        button_alert = True
+    return {"alert" : button_alert}
 
+@app.route("/button/ack", methods=['POST'])
+def button_ack():
+    global button_alert
+    button_alert = False
+    return  {"acknowledged": True}, 200
 
 @app.route("/")
 def index():
@@ -39,8 +48,9 @@ def index():
             <button type="button" onclick="toggle('off')">Turn OFF</button>
         </form>
         <div id="status" style="margin-top: 20px; font-weight: bold;">Tila: Tuntematon</div>
-        <div id="buttonState" style="margin-top: 10px; font-size: 18px; color: white; background: gray; display: inline-block; padding: 10px; border-radius: 5px;">
-            Painikkeen tila: Tuntematon
+        <div id="buttonAlert" style="margin-top: 10px; font-size: 18px; color: white; background: red; display: none; padding: 10px; border-radius: 5px;">
+            Painiketta painettu!
+            <button onclick="acknowledge()" style="margin-left: 10px;">Kuittaa</button>
         </div>
 
         <script>
@@ -54,21 +64,26 @@ def index():
                 });
             }
 
-            // Pollaa /button endpointtia 1 sekunnin välein
-            setInterval(() => {
-                fetch('/button')
-                    .then(r => r.json())
-                    .then(data => {
-                        const el = document.getElementById("buttonState");
-                        if (data.pressed) {
-                            el.textContent = "Painikkeen tila: Painettu";
-                            el.style.background = "blue";
-                        } else {
-                            el.textContent = "Painikkeen tila: Ei painettu";
-                            el.style.background = "gray";
-                        }
+               // Pollaa painiketilaa
+                setInterval(() => {
+                    fetch('/button')
+                        .then(r => r.json())
+                        .then(data => {
+                            const el = document.getElementById("buttonAlert");
+                            if (data.alert) {
+                                el.style.display = "inline-block";
+                            }
+                        });
+                }, 2000);
+
+                // Kuittaa painike
+                function acknowledge() {
+                    fetch('/button/ack', {
+                        method: 'POST'
+                    }).then(() => {
+                        document.getElementById("buttonAlert").style.display = "none";
                     });
-            }, 1000);
+                }
         </script>
     """
 
