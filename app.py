@@ -1,9 +1,9 @@
 from flask import Flask, request
 import RPi.GPIO as GPIO
+import atexit
 
-
-LED_PIN = 17 # physical pin 11
-BUTTON_PIN = 27 # physical pin 13
+LED_PIN = 17
+BUTTON_PIN = 27
 button_alert = False
 
 app = Flask(__name__)
@@ -19,18 +19,22 @@ def handle_button_press(channel):
     button_alert = True
     print("Painiketta painettu!")
 
-GPIO.add_event_detect(
-    BUTTON_PIN, GPIO.FALLING, callback=handle_button_press, bouncetime=300
-)
 
-@app.route('/led', methods=['POST'])
+def cleanup():
+    GPIO.cleanup()
+
+
+atexit.register(cleanup)
+
+
+@app.route("/led", methods=["POST"])
 def control_led():
     data = request.get_json()
     state = data.get("state")
 
     if state == "on":
         GPIO.output(LED_PIN, GPIO.HIGH)
-        return  {"status": "LED turned on"}, 200
+        return {"status": "LED turned on"}, 200
     elif state == "off":
         GPIO.output(LED_PIN, GPIO.LOW)
         return {"status": "LED turned off"}, 200
@@ -76,7 +80,6 @@ def index():
                 });
             }
 
-
             window.onload = () => {
                 fetch('/button')
                     .then(r => r.json())
@@ -87,7 +90,6 @@ def index():
                         }
                     });
             };
-
 
             function acknowledge() {
                 fetch('/button/ack', {
@@ -101,4 +103,11 @@ def index():
 
 
 if __name__ == "__main__":
+    # Lisätään edge detection vasta kun kaikki on alustettu
+    try:
+        GPIO.add_event_detect(
+            BUTTON_PIN, GPIO.FALLING, callback=handle_button_press, bouncetime=300
+        )
+    except RuntimeError as e:
+        print("Virhe lisättäessä edge detectiota:", e)
     app.run(host="0.0.0.0", port=5000)
