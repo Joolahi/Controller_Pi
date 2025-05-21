@@ -1,24 +1,22 @@
 from flask import Flask, request
 import RPi.GPIO as GPIO
+import threading
+import time
 import atexit
+
 
 LED_PIN = 17
 BUTTON_PIN = 27
 button_alert = False
 
+
 app = Flask(__name__)
+
 
 GPIO.setwarnings(False)
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(LED_PIN, GPIO.OUT)
 GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-
-
-def handle_button_press(channel):
-    global button_alert
-    button_alert = True
-    print("Painiketta painettu!")
-
 
 def cleanup():
     GPIO.cleanup()
@@ -26,6 +24,19 @@ def cleanup():
 
 atexit.register(cleanup)
 
+
+
+def monitor_button():
+    global button_alert
+    while True:
+        if GPIO.input(BUTTON_PIN) == GPIO.LOW:
+            if not button_alert:
+                print("Painiketta painettu!")
+            button_alert = True
+        time.sleep(0.1)
+
+
+threading.Thread(target=monitor_button, daemon=True).start()
 
 @app.route("/led", methods=["POST"])
 def control_led():
@@ -41,7 +52,6 @@ def control_led():
     else:
         return {"error": "Invalid state. Use 'on' or 'off'."}, 400
 
-
 @app.route("/button", methods=["GET"])
 def button_state():
     global button_alert
@@ -53,7 +63,6 @@ def button_ack():
     global button_alert
     button_alert = False
     return {"acknowledged": True}, 200
-
 
 @app.route("/")
 def index():
@@ -80,6 +89,7 @@ def index():
                 });
             }
 
+            // Tarkista painiketila heti sivun latauksen yhteydessä
             window.onload = () => {
                 fetch('/button')
                     .then(r => r.json())
@@ -91,6 +101,7 @@ def index():
                     });
             };
 
+            // Kuittaa painiketila
             function acknowledge() {
                 fetch('/button/ack', {
                     method: 'POST'
@@ -103,11 +114,4 @@ def index():
 
 
 if __name__ == "__main__":
-    # Lisätään edge detection vasta kun kaikki on alustettu
-    try:
-        GPIO.add_event_detect(
-            BUTTON_PIN, GPIO.FALLING, callback=handle_button_press, bouncetime=300
-        )
-    except RuntimeError as e:
-        print("Virhe lisättäessä edge detectiota:", e)
     app.run(host="0.0.0.0", port=5000)
