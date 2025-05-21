@@ -25,7 +25,6 @@ def cleanup():
 atexit.register(cleanup)
 
 
-
 def monitor_button():
     global button_alert
     while True:
@@ -88,6 +87,18 @@ def index():
                     document.getElementById("status").textContent = "Tila: " + (data.status || data.error);
                 });
             }
+
+            // Tarkista painiketila säännöllisesti
+            setInterval(() => {
+                fetch('/button')
+                    .then(r => r.json())
+                    .then(data => {
+                        const el = document.getElementById("buttonAlert");
+                        if (data.alert) {
+                            el.style.display = "inline-block";
+                        }
+                    });
+            }, 1000); // tarkistaa kerran sekunnissa
 
             // Tarkista painiketila heti sivun latauksen yhteydessä
             window.onload = () => {
