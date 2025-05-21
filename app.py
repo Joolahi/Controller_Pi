@@ -8,6 +8,7 @@ app = Flask(__name__)
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(LED_PIN, GPIO.OUT)
+GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 @app.route('/led', methods=['POST'])
 def control_led():
