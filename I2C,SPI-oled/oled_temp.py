@@ -2,34 +2,22 @@ import time
 import board
 import busio
 import digitalio
-import adafruit_sht31d
-import adafruit_ssd1351
+import displayio
+from adafruit_displayio_ssd1351 import SSD1351
 from PIL import Image, ImageDraw, ImageFont
+import adafruit_sht31d
 
-# SHT35 (I2C)
+displayio.release_displays()
+
+# I2C (SHT35)
 i2c = busio.I2C(board.SCL, board.SDA)
 sht = adafruit_sht31d.SHT31D(i2c, address=0x45)
 
-# OLED (SPI)
+# SPI (OLED)
 spi = busio.SPI(clock=board.SCK, MOSI=board.MOSI)
-cs = digitalio.DigitalInOut(board.CE0)  # GPIO8
-dc = digitalio.DigitalInOut(board.D25)  # GPIO25
-reset = digitalio.DigitalInOut(board.D24)  # GPIO24
+cs = digitalio.DigitalInOut(board.CE0)
+dc = digitalio.DigitalInOut(board.D25)
+reset = digitalio.DigitalInOut(board.D24)
 
-display = adafruit_ssd1351.SSD1351(spi, cs=cs, dc=dc, rst=reset, width=128, height=128)
-
-font = ImageFont.load_default()
-
-while True:
-    temp = sht.temperature
-    humidity = sht.relative_humidity
-
-    image = Image.new("RGB", (128, 128))
-    draw = ImageDraw.Draw(image)
-
-    draw.rectangle((0, 0, 128, 128), fill=(0, 0, 0)) # Clear the screen
-    draw.text((10, 30), f"Temp: {temp:.1f} C", font=font, fill=(255, 255, 255))
-    draw.text((10, 60), f"Hum:  {humidity:.1f} %", font=font, fill=(255, 255, 255))
-
-    display.image(image)
-    time.sleep(2)
+display_bus = displayio.FourWire(spi, command=dc, chip_select=cs, reset=reset)
+display = SSD1351(display_bus, width=128, height=128)
