@@ -7,9 +7,11 @@ from adafruit_display_text import label
 import adafruit_sht31d
 import time
 import requests
+from dotenv import load_dotenv
+import os 
 
-
-FIREBASE_URL = "https://sensormonitor-65813-default-rtdb.europe-west1.firebasedatabase.app/device1.json"
+load_dotenv()
+FIREBASE_URL = os.getenv("FIREBASE_URL") 
 # Release previous displays
 displayio.release_displays()
 
